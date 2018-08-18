@@ -15,7 +15,7 @@ HTTPClient http;
 const char* ssid     = "Ooo Ooo Net";
 const char* password = "itiswednesdaymydudes";
 const char* host = "inft3970.com";
-const char* guid = "665de0aa-14d6-4bf3-ab85-17d07262ac6b";
+const char* id = "1";
 
 // Required for string concat
 char *strcat(char *dest, const char *src);
@@ -56,13 +56,24 @@ void setup()
   dht.setup(5, DHTesp::DHT11); // Connect DHT sensor to GPIO 17
 }
 
-void post_to_api(float temperature, float humidity)
+void post_to_api(double temperature, double humidity)
 { 
-  char* json_payload = generate_json_payload(temperature, humidity);
-  http.begin("http://192.168.1.88:9999/hello");
+  char* temperature_json_payload = generate_temperature_json_payload(temperature);
+  char* humidity_json_payload = generate_humidity_json_payload(humidity);
+  http.begin("http://192.168.1.11:49987/api/Temperature/Create");
   http.addHeader("Content-Type", "application/json");
-  int httpCode = http.POST(json_payload);   //Send the request
+  int httpCode = http.POST(temperature_json_payload);   //Send the request
   String payload = http.getString();                  //Get the response payload
+  
+  Serial.println(httpCode);   //Print HTTP return code
+  Serial.println(payload);    //Print request response payload
+  
+  http.end();  //Close connection
+
+  http.begin("http://192.168.1.11:49987/api/Humidity/Create");
+  http.addHeader("Content-Type", "application/json");
+  httpCode = http.POST(humidity_json_payload);   //Send the request
+  payload = http.getString();                  //Get the response payload
   
   Serial.println(httpCode);   //Print HTTP return code
   Serial.println(payload);    //Print request response payload
@@ -70,19 +81,33 @@ void post_to_api(float temperature, float humidity)
   http.end();  //Close connection
 }
 
-char* generate_json_payload(double temperature, double humidity)
+char* generate_temperature_json_payload(double temperature)
 {
   char temp_output[5];
+  char json_load[100];
+  
+  snprintf(temp_output, 5, "%f", temperature);
+
+  strcpy(json_load, "{\"Id\":\"");
+  strcat(json_load, id);
+  strcat(json_load, "\",\"Temperature\":\"");
+  strcat(json_load, temp_output);
+  strcat(json_load, "\"}");
+
+  Serial.println("Generated json payload:");
+  Serial.println(json_load);
+  return json_load;
+}
+
+char* generate_humidity_json_payload(double humidity)
+{
   char humidity_output[5];
   char json_load[100];
   
-  snprintf(temp_output, 5, "%d", temperature);
-  snprintf(humidity_output, 5, "%d", humidity);
+  snprintf(humidity_output, 5, "%f", humidity);
 
-  strcpy(json_load, "{\"Guid\":\"");
-  strcat(json_load, guid);
-  strcat(json_load, "\",\"Temperature\":\"");
-  strcat(json_load, humidity_output);
+  strcpy(json_load, "{\"Id\":\"");
+  strcat(json_load, id);
   strcat(json_load, "\",\"Humidity\":\"");
   strcat(json_load, humidity_output);
   strcat(json_load, "\"}");
@@ -111,7 +136,8 @@ void loop()
 {
   if (WiFi.status() == WL_CONNECTED){
     // Delay minimum sampling period to avoid errors with the sensor
-    delay(dht.getMinimumSamplingPeriod());
+    //delay(dht.getMinimumSamplingPeriod());
+    delay(1000);
   
     double humidity = dht.getHumidity();
     double temperature = dht.getTemperature();
