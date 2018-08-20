@@ -39,10 +39,10 @@ void setup()
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
 
-  //while (WiFi.status() != WL_CONNECTED) {
-  //  delay(500);
-  //  Serial.print(".");
-  //}
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
 
   Serial.println("");
   Serial.println("WiFi connected");
@@ -108,7 +108,7 @@ void post_humidity(double humidity)
 
 void loop()
 {
-  if (WiFi.status() != WL_CONNECTED){
+  if (WiFi.status() == WL_CONNECTED){
     // Delay 10 Seconds
     delay(10000);
   
