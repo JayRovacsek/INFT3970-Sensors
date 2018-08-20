@@ -110,7 +110,7 @@ void loop()
 {
   if (WiFi.status() == WL_CONNECTED){
     // Delay 10 Seconds
-    delay(10000);
+    delay(30000);
   
     double humidity = dht.getHumidity();
     double temperature = dht.getTemperature();
