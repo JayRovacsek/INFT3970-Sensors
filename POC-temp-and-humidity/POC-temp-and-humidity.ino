@@ -15,16 +15,17 @@ HTTPClient http;
 StaticJsonDocument<300> json;
 
 // Consts
-const char* ssid     = "DODO-C766";
-const char* password = "Whistler";
+const char* ssid     = "SSID";
+const char* password = "SUPERSECRETPASSWORD";
 const char* host = "inft3970.com";
-const char* Id = "2";
+const char* Id = "1";
 
 // Required for string concat
 char *strcat(char *dest, const char *src);
 
 void setup()
 {
+  pinMode(2, OUTPUT);     // Initialize the LED_BUILTIN pin as an output
   // Set serial baud rate at 115200
   Serial.begin(115200);
   delay(10);
@@ -49,9 +50,6 @@ void setup()
   Serial.println("IP address: ");
   Serial.println(WiFi.localIP());
   
-  // Print output header for POC
-  Serial.println("Status\tHumidity (%)\tTemperature (C)\t(F)\tHeatIndex (C)\t(F)");
-
   // 5 is the I/O output as dictated; https://iotbytes.wordpress.com/nodemcu-pinout/ 
   dht.setup(5, DHTesp::DHT11); // Connect DHT sensor to GPIO 17
 }
@@ -65,8 +63,6 @@ void post_temperature(double temperature)
   String jsonPayload;
   serializeJson(jsonObject, jsonPayload);
   
-  Serial.println(jsonPayload);
-
   http.begin("http://inft3970.azurewebsites.net:80/api/Temperature/Create");
   http.addHeader("Content-Type", "application/json");
   int httpCode = http.POST(jsonPayload); //Send the request
@@ -74,11 +70,6 @@ void post_temperature(double temperature)
   Serial.println(httpCode); //Print HTTP return code
   Serial.println(payload); //Print request response payload
   http.end(); //Close connection
-  
-  Serial.println(httpCode);   //Print HTTP return code
-  Serial.println(payload);    //Print request response payload
-  
-  http.end();  //Close connection
 }
 
 void post_humidity(double humidity)
@@ -90,8 +81,6 @@ void post_humidity(double humidity)
   String jsonPayload;
   serializeJson(jsonObject, jsonPayload);
   
-  Serial.println(jsonPayload);
-
   http.begin("http://inft3970.azurewebsites.net:80/api/Humidity/Create");
   http.addHeader("Content-Type", "application/json");
   int httpCode = http.POST(jsonPayload); //Send the request
@@ -99,22 +88,24 @@ void post_humidity(double humidity)
   Serial.println(httpCode); //Print HTTP return code
   Serial.println(payload); //Print request response payload
   http.end(); //Close connection
-  
-  Serial.println(httpCode);   //Print HTTP return code
-  Serial.println(payload);    //Print request response payload
-  
-  http.end();  //Close connection
 }
 
 void loop()
 {
+  digitalWrite(2, HIGH);
   if (WiFi.status() == WL_CONNECTED){
-    // Delay 10 Seconds
-    delay(30000);
-  
+    digitalWrite(2, HIGH);
+    // Delay 30 Seconds
+    delay(29000);
+    digitalWrite(2, LOW);
+    delay(500);
+    digitalWrite(2, HIGH);
+    delay(500);
+    digitalWrite(2, LOW);
     double humidity = dht.getHumidity();
     double temperature = dht.getTemperature();
     post_temperature(temperature);
     post_humidity(humidity);
+    digitalWrite(2, HIGH);
   }
 }
