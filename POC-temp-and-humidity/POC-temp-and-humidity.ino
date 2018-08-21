@@ -15,10 +15,10 @@ HTTPClient http;
 StaticJsonDocument<300> json;
 
 // Consts
-const char* ssid     = "Ooo Ooo Net";
-const char* password = "itiswednesdaymydudes";
+const char* ssid     = "DODO-C766";
+const char* password = "Whistler";
 const char* host = "inft3970.com";
-const char* Id = "1";
+const char* Id = "2";
 
 // Required for string concat
 char *strcat(char *dest, const char *src);
@@ -67,7 +67,7 @@ void post_temperature(double temperature)
   
   Serial.println(jsonPayload);
 
-  http.begin("http://192.168.1.11:49987/api/Temperature/Create");
+  http.begin("http://inft3970.azurewebsites.net:80/api/Temperature/Create");
   http.addHeader("Content-Type", "application/json");
   int httpCode = http.POST(jsonPayload); //Send the request
   String payload = http.getString(); //Get the response payload
@@ -92,7 +92,7 @@ void post_humidity(double humidity)
   
   Serial.println(jsonPayload);
 
-  http.begin("http://192.168.1.11:49987/api/Humidity/Create");
+  http.begin("http://inft3970.azurewebsites.net:80/api/Humidity/Create");
   http.addHeader("Content-Type", "application/json");
   int httpCode = http.POST(jsonPayload); //Send the request
   String payload = http.getString(); //Get the response payload
@@ -110,7 +110,7 @@ void loop()
 {
   if (WiFi.status() == WL_CONNECTED){
     // Delay 10 Seconds
-    delay(10000);
+    delay(30000);
   
     double humidity = dht.getHumidity();
     double temperature = dht.getTemperature();
