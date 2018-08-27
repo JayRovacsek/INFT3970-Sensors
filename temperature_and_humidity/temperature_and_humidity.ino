@@ -17,7 +17,7 @@ StaticJsonDocument<300> json;
 // Consts
 const char* ssid     = "SSID";
 const char* password = "SUPERSECRETPASSWORD";
-const char* host = "inft3970.com";
+const String host = "inft3970.com";
 const char* Id = "1";
 
 // Required for string concat
@@ -54,6 +54,18 @@ void setup()
   dht.setup(5, DHTesp::DHT11); // Connect DHT sensor to GPIO 17
 }
 
+int check_service_status()
+{
+  String endpoint = String("http://" + host + ":80/api/Availability");
+  http.begin(endpoint);
+  int httpCode = http.GET(); //Send the request
+  String payload = http.getString(); //Get the response payload
+  Serial.println(httpCode); //Print HTTP return code
+  Serial.println(payload); //Print request response payload
+  http.end(); //Close connection
+  return httpCode;
+}
+
 void post_temperature(double temperature)
 {
   JsonObject jsonObject = json.to<JsonObject>();
@@ -62,8 +74,9 @@ void post_temperature(double temperature)
   
   String jsonPayload;
   serializeJson(jsonObject, jsonPayload);
-  
-  http.begin("http://inft3970.azurewebsites.net:80/api/Temperature/Create");
+
+  String endpoint = String("http://" + host + ":80/api/Temperature/Create");
+  http.begin(endpoint);
   http.addHeader("Content-Type", "application/json");
   int httpCode = http.POST(jsonPayload); //Send the request
   String payload = http.getString(); //Get the response payload
@@ -80,8 +93,9 @@ void post_humidity(double humidity)
   
   String jsonPayload;
   serializeJson(jsonObject, jsonPayload);
-  
-  http.begin("http://inft3970.azurewebsites.net:80/api/Humidity/Create");
+
+  String endpoint = String("http://" + host + ":80/api/Humidity/Create");
+  http.begin(endpoint);
   http.addHeader("Content-Type", "application/json");
   int httpCode = http.POST(jsonPayload); //Send the request
   String payload = http.getString(); //Get the response payload
@@ -94,18 +108,22 @@ void loop()
 {
   digitalWrite(2, HIGH);
   if (WiFi.status() == WL_CONNECTED){
-    digitalWrite(2, HIGH);
-    // Delay 30 Seconds
-    delay(29000);
-    digitalWrite(2, LOW);
-    delay(500);
-    digitalWrite(2, HIGH);
-    delay(500);
-    digitalWrite(2, LOW);
-    double humidity = dht.getHumidity();
-    double temperature = dht.getTemperature();
-    post_temperature(temperature);
-    post_humidity(humidity);
-    digitalWrite(2, HIGH);
+    int availability = check_service_status();
+    while(availability == 200)
+    {
+      digitalWrite(2, LOW);
+      delay(500);
+      digitalWrite(2, HIGH);
+      delay(500);
+      digitalWrite(2, LOW);
+      double humidity = dht.getHumidity();
+      double temperature = dht.getTemperature();
+      post_temperature(temperature);
+      post_humidity(humidity);
+      digitalWrite(2, HIGH);
+      // Delay 29 Seconds
+      delay(29000);
+      availability = check_service_status();
+    }
   }
 }
