@@ -121,8 +121,8 @@ void loop()
       post_temperature(temperature);
       post_humidity(humidity);
       digitalWrite(2, HIGH);
-      // Delay 29 Seconds
-      delay(29000);
+      // Delay 5 minutes
+      delay(300000);
       availability = check_service_status();
     }
   }
