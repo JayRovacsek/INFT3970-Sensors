@@ -1,10 +1,6 @@
-#include <Time.h>
 #include <DHTesp.h>
 #include <stdlib.h>
-#include <WiFiUdp.h>
-#include <TimeLib.h>
-#include <NTPClient.h>
-#include <TimeAlarms.h>
+#include <Ticker.h>
 #include <ESP8266WiFi.h>
 #include <ArduinoJson.h>
 #include <ESP8266HTTPClient.h>
@@ -19,6 +15,16 @@ HTTPClient http;
 // Static Json Object Encoder/Decoder
 StaticJsonDocument<300> json;
 
+Ticker ticker;
+Ticker temperatureTimer;
+Ticker humidityTimer;
+Ticker motionTimer;
+
+struct KeyValuePair{
+  String key;
+  String value;
+};
+
 // Consts
 const char* ssid     = "SSID";
 const char* password = "SUPERSECRETPASSWORD";
@@ -26,16 +32,12 @@ const String host = "inft3970.com";
 const char* Id = "1";
 const char* ntp = "pool.ntp.org";
 
-WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP, ntp, 3600, 60000);
-
-// Required for string concat
-char *strcat(char *dest, const char *src);
+#define LED 2  //On board LED
+#define Motion 12 //Pin Motion sensor is associated with
 
 void setup()
 {
   pinMode(2, OUTPUT);     // Initialize the LED_BUILTIN pin as an output
-  // Set serial baud rate at 115200
   Serial.begin(115200);
   delay(10);
 
@@ -43,9 +45,6 @@ void setup()
   Serial.print("Connecting to ");
   Serial.println(ssid);
 
-  /* Explicitly set the ESP8266 to be a WiFi-client, otherwise, it by default,
-     would try to act as both a client and an access-point and could cause
-     network-issues with your other WiFi-devices on your WiFi-network. */
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
 
@@ -61,10 +60,9 @@ void setup()
   
   // 5 is the I/O output as dictated; https://iotbytes.wordpress.com/nodemcu-pinout/ 
   dht.setup(5, DHTesp::DHT11); // Connect DHT sensor to GPIO 17
-  timeClient.begin();
 }
 
-int check_service_status()
+bool checkServiceStatus()
 {
   String endpoint = String("http://" + host + ":80/api/Availability");
   http.begin(endpoint);
@@ -73,21 +71,27 @@ int check_service_status()
   Serial.println(httpCode); //Print HTTP return code
   Serial.println(payload); //Print request response payload
   http.end(); //Close connection
-  return httpCode;
+  if(httpCode = 200){
+    return true;
+  }
+  return false;
 }
 
-void post_temperature(double temperature)
-{
+String createJsonPayload(KeyValuePair values){
   JsonObject jsonObject = json.to<JsonObject>();
   jsonObject["Id"] = Id;
-  jsonObject["Temperature"] = temperature;
+  jsonObject[values.key] = values.value;
   
   String jsonPayload;
   serializeJson(jsonObject, jsonPayload);
+  return jsonPayload;
+}
 
-  String endpoint = String("http://" + host + ":80/api/Temperature/Create");
+void postPayload(String type, String jsonPayload){
+  String endpoint = String("http://" + host + ":80/api/" + type + "/Create");
   http.begin(endpoint);
   http.addHeader("Content-Type", "application/json");
+
   int httpCode = http.POST(jsonPayload); //Send the request
   String payload = http.getString(); //Get the response payload
   Serial.println(httpCode); //Print HTTP return code
@@ -95,49 +99,51 @@ void post_temperature(double temperature)
   http.end(); //Close connection
 }
 
-void post_humidity(double humidity)
-{
-  JsonObject jsonObject = json.to<JsonObject>();
-  jsonObject["Id"] = Id;
-  jsonObject["Humidity"] = humidity;
-  
-  String jsonPayload;
-  serializeJson(jsonObject, jsonPayload);
+void ChangeState(){
+  digitalWrite(LED,!(digitalRead(LED)));
+}
 
-  String endpoint = String("http://" + host + ":80/api/Humidity/Create");
-  http.begin(endpoint);
-  http.addHeader("Content-Type", "application/json");
-  int httpCode = http.POST(jsonPayload); //Send the request
-  String payload = http.getString(); //Get the response payload
-  Serial.println(httpCode); //Print HTTP return code
-  Serial.println(payload); //Print request response payload
-  http.end(); //Close connection
+bool getMotion(){
+  int result = digitalRead(Motion);
+  if(result == 0){
+    return false;
+  }
+  return true;
+}
+
+void flashLED(int iterations, int msBetweenFlash){
+  for(int i = 1; i <= iterations; i++){
+    ticker.attach_ms(msBetweenFlash,ChangeState);
+  }
 }
 
 void loop()
 {
-  digitalWrite(2, HIGH);
+  digitalWrite(LED, HIGH);
   if (WiFi.status() == WL_CONNECTED){
-    int availability = check_service_status();
-    while(availability == 200)
+    bool serviceAvailable = checkServiceStatus();
+    while(serviceAvailable)
     {
-      digitalWrite(2, LOW);
-      delay(500);
-      digitalWrite(2, HIGH);
-      delay(500);
-      digitalWrite(2, LOW);
+      flashLED(5,400);
+      KeyValuePair temperatureKeyValuePair = {"temperature",String(dht.getTemperature(),2)};
+      String temperaturePayload = createJsonPayload(temperatureKeyValuePair);
+      temperatureTimer.attach(300,postPayload("temperature",temperaturePayload));
+      Serial.println("temperature timer started");
 
-      timeClient.update();
-      Serial.println(timeClient.getFormattedTime());
+      KeyValuePair humidityKeyValuePair = {"humidity",String(dht.getHumidity(),2)};
+      String humidityPayload = createJsonPayload(humidityKeyValuePair);
+      humidityTimer.attach(300,postPayload("humidity",humidityPayload));
+      Serial.println("humidity timer started");
 
-      double humidity = dht.getHumidity();
-      double temperature = dht.getTemperature();
-      post_temperature(temperature);
-      post_humidity(humidity);
-      digitalWrite(2, HIGH);
-      // Delay 5 minutes
-      delay(300000);
-      availability = check_service_status();
+      bool motion = getMotion();
+      if(motion){
+        KeyValuePair motionKeyValuePair = {"motion","1"};
+        String motionPayload = createJsonPayload(motionKeyValuePair);
+        motionTimer.attach(30,postPayload("motion",motionPayload));
+        Serial.println("motion timer started");
+      }
+
+      serviceAvailable = checkServiceStatus();
     }
   }
 }
