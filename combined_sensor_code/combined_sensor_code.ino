@@ -25,7 +25,6 @@ const char* ssid     = "SSID";
 const char* password = "SUPERSECRETPASSWORD";
 const String host = "inft3970.azurewebsites.net";
 const char* Id = "1";
-const char* ntp = "pool.ntp.org";
 
 #define LED 2  //On board LED
 #define TEMPHUMID 5
@@ -92,18 +91,18 @@ void debug(){
   Serial.println("Motion Detected: " + String(motion));
   Serial.println("API status available: " + String(serviceAvailable));
 
-  Serial.println(dht.getTemperature());
-  
-  String temperaturePayload = createJsonPayload("temperature",dht.getTemperature());
+  double temperature = dht.getTemperature();
+  Serial.println("Temperature: " + String(temperature,2));
+  String temperaturePayload = createJsonPayload("temperature",temperature);
   Serial.println("Temperature payload: " + temperaturePayload);
 
-  Serial.println(dht.getHumidity());
-
-  String humidityPayload = createJsonPayload("humidity",dht.getHumidity());
+  double humidity = dht.getHumidity();
+  Serial.println("Humidity: " + String(humidity,2));
+  String humidityPayload = createJsonPayload("humidity",humidity);
   Serial.println("Humidity payload: " + humidityPayload);
 }
 
-String createJsonPayload(String measure,float value){
+String createJsonPayload(String measure,double value){
   JsonObject jsonObject = json.to<JsonObject>();
   jsonObject["Id"] = Id;
   jsonObject[measure] = value;
