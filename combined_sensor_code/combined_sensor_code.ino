@@ -1,15 +1,27 @@
 #include <DHTesp.h>
 #include <Ticker.h>
-#include <ESP8266WiFi.h>
 #include <ArduinoJson.h>
+#include <ESP8266WiFi.h>
+#include <Arduino.h>
+
+#include <ESP8266WiFiMulti.h>
+
 #include <ESP8266HTTPClient.h>
+
+#include <WiFiClientSecureBearSSL.h>
+
+// https://github.com/esp8266/Arduino/blob/master/libraries/ESP8266HTTPClient/examples/BasicHttpsClient/BasicHttpsClient.ino -- need to look at
+// https://github.com/esp8266/Arduino/blob/master/libraries/ESP8266WiFi/src/WiFiClientSecureAxTLS.cpp
+
+
 
 // DHTesp is a library imported from; https://github.com/beegee-tokyo/DHTesp
 // A fair bit of the below code is reused from: https://github.com/beegee-tokyo/DHTesp/tree/master/examples/DHT_ESP8266 
 DHTesp dht;
 
-// Httpclient required for POST requests to hit the API
-HTTPClient http;
+// WifiClient required for POST requests to hit the API
+ESP8266WiFiMulti WiFi;
+
 
 // Static Json Object Encoder/Decoder
 StaticJsonDocument<300> json;
@@ -25,6 +37,7 @@ const char* ssid     = "SSID";
 const char* password = "SUPERSECRETPASSWORD";
 const String host = "inft3970.azurewebsites.net";
 const char* Id = "1";
+const uint8_t fingerprint[20] = {0x3A, 0xB0, 0xB1, 0xC2, 0x7F, 0x74, 0x6F, 0xD9, 0x0C, 0x34, 0xF0, 0xD6, 0xA9, 0x60, 0xCF, 0x73, 0xA4, 0x22, 0x9D, 0xE8};
 
 #define LED 2  //On board LED
 #define TEMPHUMID 5
@@ -46,8 +59,15 @@ void setup()
   Serial.print("Connecting to ");
   Serial.println(ssid);
 
+
+  WiFi.mode(WIFI_STA);
+  WiFiMulti.addAP(ssid, password);
+
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
+
+
+
 
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
@@ -70,7 +90,7 @@ void setup()
 
 void checkServiceStatus()
 {
-  String endpoint = String("http://" + host + ":80/api/Availability");
+  String endpoint = String("https://" + host + ":/api/Availability");
   http.begin(endpoint);
   int httpCode = http.GET(); //Send the request
   String payload = http.getString(); //Get the response payload
@@ -114,7 +134,7 @@ String createJsonPayload(String measure,double value){
 }
 
 void postPayload(String type, String jsonPayload){
-  String endpoint = String("http://" + host + ":80/api/" + type + "/Create");
+  String endpoint = String("https://" + host + ":/api/" + type + "/Create");
   http.begin(endpoint);
   http.addHeader("Content-Type", "application/json");
 
