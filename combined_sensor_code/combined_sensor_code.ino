@@ -20,7 +20,7 @@
 DHTesp dht;
 
 // WifiClient required for POST requests to hit the API
-ESP8266WiFiMulti WiFi;
+ESP8266WiFiMulti WiFiMulti;
 
 
 // Static Json Object Encoder/Decoder
@@ -31,6 +31,8 @@ Ticker temperatureHumidityTimer;
 Ticker motionTimer;
 Ticker serviceStatusTimer;
 Ticker debugTimer;
+
+HTTPClient https;
 
 // Consts
 const char* ssid     = "SSID";
@@ -66,9 +68,6 @@ void setup()
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
 
-
-
-
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
@@ -90,14 +89,14 @@ void setup()
 
 void checkServiceStatus()
 {
-  String endpoint = String("https://" + host + ":/api/Availability");
-  http.begin(endpoint);
-  int httpCode = http.GET(); //Send the request
-  String payload = http.getString(); //Get the response payload
+  String endpoint = String("http://" + host + ":/api/Availability");
+  https.begin(endpoint, fingerprint);
+  int httpCode = https.GET(); //Send the request
+  String payload = https.getString(); //Get the response payload
   Serial.println(endpoint); //Print HTTP return code
   Serial.println(httpCode); //Print HTTP return code
   Serial.println(payload); //Print request response payload
-  http.end(); //Close connection
+  https.end(); //Close connection
   if(httpCode = 200){
     serviceAvailable = true;
     return;
@@ -107,15 +106,20 @@ void checkServiceStatus()
 }
 
 void debug(){
+  Serial.println("--------------------------------------------------");
+  Serial.println("API status available: " + String(serviceAvailable));
+  Serial.println("--------------------------------------------------");
+
   bool motion = getMotion();
   Serial.println("Motion Detected: " + String(motion));
-  Serial.println("API status available: " + String(serviceAvailable));
+  Serial.println("--------------------------------------------------");
 
   double temperature = dht.getTemperature();
   Serial.println("Temperature: " + String(temperature,2));
   String temperaturePayload = createJsonPayload("temperature",temperature);
   Serial.println("Temperature payload: " + temperaturePayload);
-
+  Serial.println("--------------------------------------------------");
+  
   double humidity = dht.getHumidity();
   Serial.println("Humidity: " + String(humidity,2));
   String humidityPayload = createJsonPayload("humidity",humidity);
@@ -135,14 +139,16 @@ String createJsonPayload(String measure,double value){
 
 void postPayload(String type, String jsonPayload){
   String endpoint = String("https://" + host + ":/api/" + type + "/Create");
-  http.begin(endpoint);
-  http.addHeader("Content-Type", "application/json");
+  Serial.println("Reached out to: " + endpoint);
 
-  int httpCode = http.POST(jsonPayload); //Send the request
-  String payload = http.getString(); //Get the response payload
-  Serial.println(httpCode); //Print HTTP return code
-  Serial.println(payload); //Print request response payload
-  http.end(); //Close connection
+  //https.begin(endpoint, fingerprint);
+  //https.addHeader("Content-Type", "application/json");
+
+  //int httpCode = https.POST(jsonPayload); //Send the request
+  //String payload = https.getString(); //Get the response payload
+  //Serial.println(httpCode); //Print HTTP return code
+  //Serial.println(payload); //Print request response payload
+  //https.end(); //Close connection
 }
 
 void changeState(){
@@ -200,4 +206,3 @@ void motionTimerExecute(){
 void loop()
 {
 }
-
