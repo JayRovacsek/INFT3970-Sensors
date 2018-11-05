@@ -17,7 +17,7 @@ StaticJsonDocument<300> json;
 // Consts
 const char* ssid     = "SSID";
 const char* password = "SUPERSECRETPASSWORD";
-const char* host = "inft3970.com";
+const char* host = "inft3970.azurewebsites.net";
 const char* Id = "1";
 
 // Required for string concat
@@ -104,8 +104,10 @@ void loop()
     digitalWrite(2, LOW);
     double humidity = dht.getHumidity();
     double temperature = dht.getTemperature();
-    post_temperature(temperature);
-    post_humidity(humidity);
+    
+    Serial.println("Humidity: " + String(humidity,2));
+
+    Serial.println("Temperature: " + String(temperature,2));
     digitalWrite(2, HIGH);
   }
 }

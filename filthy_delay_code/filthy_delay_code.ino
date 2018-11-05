@@ -23,22 +23,22 @@ const char* ssid     = "SSID";
 const char* password = "SUPERSECRETPASSWORD";
 const String host = "https://inft3970.azurewebsites.net";
 const char* Id = "1";
-//const String fingerprint = "3A B0 B1 C2 7F 74 6F D9 0C 34 F0 D6 A9 60 CF 73 A4 22 9D E8";
-const uint8_t fingerprint[20] = {0x3A, 0xB0, 0xB1, 0xC2, 0x7F, 0x74, 0x6F, 0xD9, 0x0C, 0x34, 0xF0, 0xD6, 0xA9, 0x60, 0xCF, 0x73, 0xA4, 0x22, 0x9D, 0xE8};
+const String fingerprint = "3A B0 B1 C2 7F 74 6F D9 0C 34 F0 D6 A9 60 CF 73 A4 22 9D E8";
+//const uint8_t fingerprint[20] = {0x3A, 0xB0, 0xB1, 0xC2, 0x7F, 0x74, 0x6F, 0xD9, 0x0C, 0x34, 0xF0, 0xD6, 0xA9, 0x60, 0xCF, 0x73, 0xA4, 0x22, 0x9D, 0xE8};
 //const uint8_t testing[20] = {0xBF, 0xF1, 0xB9, 0x95, 0x52, 0xAC, 0x69, 0xE5, 0x44, 0xA1, 0x42, 0x03, 0x31, 0xD3, 0xA0, 0xEF, 0x49, 0x44, 0xF9, 0xAB};
 
 #define LED 2  //On board LED
 #define MOTION 13 //Pin Motion sensor is associated with
 #define TH 5 //Pin Motion sensor is associated with
 
-bool DHTTimerSet = false;
-bool MotionTimerSet = false;
-bool ServiceTimerSet = false;
+bool motionOccured = false;
 bool serviceAvailable = false;
 
 // DHTesp is a library imported from; https://github.com/beegee-tokyo/DHTesp
 // A fair bit of the below code is reused from: https://github.com/beegee-tokyo/DHTesp/tree/master/examples/DHT_ESP8266 
 DHTesp dht;
+
+HTTPClient https;
 
 void setup()
 {
@@ -68,24 +68,13 @@ void setup()
 
   // 5 is the I/O output as dictated; https://www.c-sharpcorner.com/article/blinking-led-by-esp-12e-nodemcu-v3-module-using-arduinoide/
   dht.setup(TH, DHTesp::DHT11);
-  
-  serviceStatusTimer.attach(10,checkServiceStatus);
-  temperatureHumidityTimer.attach(300,dhtTimerExecute);
-  motionTimer.attach(30,motionTimerExecute);
-  debugTimer.attach(3,debug);
 }
 
 void checkServiceStatus()
 {
-  BearSSL::WiFiClientSecure *client = new BearSSL::WiFiClientSecure;
-  client->setFingerprint(fingerprint);
-
-  HTTPClient https;
-
-  https.begin(*client, "https://inft3970.azurewebsites.net/api/Availability")
   Serial.println("#############################################");
   String endpoint = "https://inft3970.azurewebsites.net/api/Availability";
-  //https.begin(endpoint,fingerprint);
+  https.begin(endpoint,fingerprint);
   int httpCode = https.GET(); //Send the request
   String payload = https.getString(); //Get the response payload
   Serial.println("HTTP Code received: " + String(httpCode)); //Print HTTP return code
@@ -137,9 +126,6 @@ String createJsonPayload(String measure,double value){
 }
 
 void postPayload(String type, String jsonPayload){
-  
-  HTTPClient https;
-
   String endpoint = String(host + "/api/" + type + "/Create");
   Serial.println("Reached out to: " + endpoint);
 
@@ -181,30 +167,59 @@ void flashLED(int iterations, int msBetweenFlash){
   }
 }
 
-void dhtTimerExecute(){
-  if(serviceAvailable){
-    String temperaturePayload = createJsonPayload("temperature",dht.getTemperature());
-    postPayload("temperature",temperaturePayload);
-    Serial.println("temperature timer fired");
-  
-    String humidityPayload = createJsonPayload("humidity",dht.getHumidity());
-    postPayload("humidity",humidityPayload);
-    Serial.println("humidity timer fired");
-  }
+void temperatureAndHumidityExecute(){
+  String temperaturePayload = createJsonPayload("temperature",dht.getTemperature());
+  postPayload("temperature",temperaturePayload);
+  Serial.println("Temperature Posted");
+
+  String humidityPayload = createJsonPayload("humidity",dht.getHumidity());
+  postPayload("humidity",humidityPayload);
+  Serial.println("Humidity Posted");
 }
 
-void motionTimerExecute(){
-  if(serviceAvailable){
-    bool motion = getMotion();
-    if(motion){
-      String motionPayload = createJsonPayload("motion",1);
-      postPayload("motion",motionPayload);
-      Serial.println("motion timer fired");
-      MotionTimerSet = false;
-    }
+bool motionExecute(){
+  if(motionOccured){
+    String motionPayload = createJsonPayload("motion",1);
+    postPayload("motion",motionPayload);
+    Serial.println("Motion Posted");
+    return true;
   }
+  motionOccured = getMotion();
+  return false;
 }
 
 void loop()
 {
+  int counter = 0;
+  int motionCounter = 0;
+  bool resetMotionCount = false;
+  checkServiceStatus();
+  while(serviceAvailable){
+    switch (counter) {
+      case 60: 
+        temperatureAndHumidityExecute(); 
+        counter = 0;
+        break;
+      default:
+        if(counter % 6 == 0){
+          if(motionCounter > 5){
+            resetMotionCount = motionExecute(); 
+          }
+        }
+        if(counter % 3 == 0){
+          checkServiceStatus();
+        }
+        debug();
+        delay(5000);        
+        break;
+    }
+
+    if(resetMotionCount){
+      motionCounter = 0;
+      resetMotionCount = false;
+    }
+    
+    motionCounter += 1;
+    counter += 1;
+  }
 }
