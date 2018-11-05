@@ -44,7 +44,6 @@ void setup()
 {
   pinMode(LED, OUTPUT);     // Initialize the LED_BUILTIN pin as an output
   pinMode(MOTION, INPUT);
-  pinMode(MOTION, INPUT);
 
   Serial.begin(115200);
   delay(50);
