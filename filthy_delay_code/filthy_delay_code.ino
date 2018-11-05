@@ -4,19 +4,12 @@
 #include <ArduinoJson.h>
 #include <ESP8266WiFi.h>
 #include <ESP8266HTTPClient.h>
-#include <WiFiClientSecureBearSSL.h>
 
-// https://github.com/esp8266/Arduino/blob/master/libraries/ESP8266HTTPClient/examples/BasicHttpsClient/BasicHttpsClient.ino -- need to look at
-// https://github.com/esp8266/Arduino/blob/master/libraries/ESP8266WiFi/src/WiFiClientSecureAxTLS.cpp
+#define LED 2
+#define MOTION 13
+#define TH 5 
 
-// Static Json Object Encoder/Decoder
 StaticJsonDocument<300> json;
-
-Ticker ticker;
-Ticker temperatureHumidityTimer;
-Ticker motionTimer;
-Ticker serviceStatusTimer;
-Ticker debugTimer;
 
 // Consts
 const char* ssid     = "SSID";
@@ -24,12 +17,6 @@ const char* password = "SUPERSECRETPASSWORD";
 const String host = "https://inft3970.azurewebsites.net";
 const char* Id = "1";
 const String fingerprint = "3A B0 B1 C2 7F 74 6F D9 0C 34 F0 D6 A9 60 CF 73 A4 22 9D E8";
-//const uint8_t fingerprint[20] = {0x3A, 0xB0, 0xB1, 0xC2, 0x7F, 0x74, 0x6F, 0xD9, 0x0C, 0x34, 0xF0, 0xD6, 0xA9, 0x60, 0xCF, 0x73, 0xA4, 0x22, 0x9D, 0xE8};
-//const uint8_t testing[20] = {0xBF, 0xF1, 0xB9, 0x95, 0x52, 0xAC, 0x69, 0xE5, 0x44, 0xA1, 0x42, 0x03, 0x31, 0xD3, 0xA0, 0xEF, 0x49, 0x44, 0xF9, 0xAB};
-
-#define LED 2  //On board LED
-#define MOTION 13 //Pin Motion sensor is associated with
-#define TH 5 //Pin Motion sensor is associated with
 
 bool motionOccured = false;
 bool serviceAvailable = false;
@@ -42,7 +29,7 @@ HTTPClient https;
 
 void setup()
 {
-  pinMode(LED, OUTPUT);     // Initialize the LED_BUILTIN pin as an output
+  pinMode(LED, OUTPUT);
   pinMode(MOTION, INPUT);
 
   Serial.begin(115200);
@@ -65,21 +52,17 @@ void setup()
   Serial.println("IP address: ");
   Serial.println(WiFi.localIP());
 
-  // 5 is the I/O output as dictated; https://www.c-sharpcorner.com/article/blinking-led-by-esp-12e-nodemcu-v3-module-using-arduinoide/
   dht.setup(TH, DHTesp::DHT11);
 }
 
 void checkServiceStatus()
 {
-  Serial.println("#############################################");
-  String endpoint = "https://inft3970.azurewebsites.net/api/Availability";
+  String endpoint = host + "/api/Availability";
   https.begin(endpoint,fingerprint);
-  int httpCode = https.GET(); //Send the request
-  String payload = https.getString(); //Get the response payload
-  Serial.println("HTTP Code received: " + String(httpCode)); //Print HTTP return code
-  Serial.println(payload); //Print request response payload
-  https.end(); //Close connection
-  Serial.println("#############################################");
+  int httpCode = https.GET();
+  String payload = https.getString();
+  Serial.println("HTTP Code received: " + String(httpCode));
+  https.end();
   if(httpCode = 200){
     serviceAvailable = true;
     return;
@@ -131,11 +114,11 @@ void postPayload(String type, String jsonPayload){
   https.begin(endpoint,fingerprint);
   https.addHeader("Content-Type", "application/json");
 
-  int httpCode = https.POST(jsonPayload); //Send the request
-  String payload = https.getString(); //Get the response payload
-  Serial.println(httpCode); //Print HTTP return code
-  Serial.println(payload); //Print request response payload
-  https.end(); //Close connection
+  int httpCode = https.POST(jsonPayload);
+  String payload = https.getString();
+  Serial.println(httpCode);
+  Serial.println(payload);
+  https.end();
 }
 
 void changeState(){
@@ -143,27 +126,15 @@ void changeState(){
 }
 
 bool getMotion(){
-  int result = digitalRead(MOTION);
-  if(result == 0){
-    return false;
+  bool result = digitalRead(MOTION);
+  Serial.println(result);
+  if(result){
+      digitalWrite(LED,LOW);
   }
-  return true;
-}
-
-void timedFlashLED(){
-  for(int i = 1; i <= 3; i++){
-    delay(300);
-    digitalWrite(LED,!(digitalRead(LED)));
+  else{
+    digitalWrite(LED,HIGH);
   }
-}
-
-void flashLED(int iterations, int msBetweenFlash){
-  for(int i = 1; i <= iterations; i++){
-    changeState();
-    delay(msBetweenFlash/2);
-    changeState();
-    delay(msBetweenFlash/2);
-  }
+  return result;
 }
 
 void temperatureAndHumidityExecute(){
