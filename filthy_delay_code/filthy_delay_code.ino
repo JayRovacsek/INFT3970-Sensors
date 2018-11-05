@@ -121,10 +121,6 @@ void postPayload(String type, String jsonPayload){
   https.end();
 }
 
-void changeState(){
-  digitalWrite(LED,!(digitalRead(LED)));
-}
-
 bool getMotion(){
   bool result = digitalRead(MOTION);
   Serial.println(result);
