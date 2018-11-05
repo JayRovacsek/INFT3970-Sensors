@@ -9,6 +9,7 @@ DHTesp dht;
 
 void setup()
 {
+  pinMode(LED, OUTPUT);     // Initialize the LED_BUILTIN pin as an output
   pinMode(MOTION, INPUT);
 
   Serial.begin(115200);
@@ -23,7 +24,6 @@ void debug(){
   double temperature = dht.getTemperature();
   bool motion = getMotion();
 
-  flashLED(3,200);
   Serial.println("Motion Detected: " + String(motion));
   Serial.println("--------------------------------------------------");
 
@@ -31,7 +31,6 @@ void debug(){
   Serial.println("--------------------------------------------------");
 
   Serial.println("Humidity: " + String(humidity,2));
-  flashLED(3,200);
 }
 
 void changeState(){
@@ -39,14 +38,17 @@ void changeState(){
 }
 
 bool getMotion(){
-  int result = digitalRead(MOTION);
+  bool result = digitalRead(MOTION);
   Serial.println("$$$$$$$$$ MOTION READING $$$$$$$$$");
-  Serial.println(String(result));
+  Serial.println(result);
   Serial.println("$$$$$$$$$ MOTION READING $$$$$$$$$");
-  if(result == 0){
-    return false;
+  if(result){
+      digitalWrite(LED,LOW);
   }
-  return true;
+  else{
+    digitalWrite(LED,HIGH);
+  }
+  return result;
 }
 
 void flashLED(int iterations, int msBetweenFlash){
