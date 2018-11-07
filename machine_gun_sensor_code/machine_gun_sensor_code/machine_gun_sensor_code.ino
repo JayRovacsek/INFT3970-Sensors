@@ -15,10 +15,9 @@ StaticJsonDocument<300> json;
 const char* ssid     = "SSID";
 const char* password = "SUPERSECRETPASSWORD";
 const String host = "https://inft3970.azurewebsites.net";
-const char* Id = "6";
+const char* Id = "17";
 const String fingerprint = "3A B0 B1 C2 7F 74 6F D9 0C 34 F0 D6 A9 60 CF 73 A4 22 9D E8";
 
-bool motionOccured = false;
 bool serviceAvailable = false;
 
 // DHTesp is a library imported from; https://github.com/beegee-tokyo/DHTesp
@@ -144,7 +143,7 @@ void temperatureAndHumidityExecute(){
 }
 
 void motionExecute(){
-  motionOccured = getMotion();
+  bool motionOccured = getMotion();
   if(motionOccured){
     String motionPayload = createJsonPayload("motion",1);
     postPayload("motion",motionPayload);
